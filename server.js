@@ -44,6 +44,7 @@ webServer.on("connection", (self) => {
 
         if (isJson(messag.toString())) {
             let object = JSON.parse(messag.toString())
+            console.log(object.type)
             client2.forEach((client) => {
                 if (client.id == self)
                     sender = client.name
@@ -91,13 +92,14 @@ webServer.on("connection", (self) => {
                     msg: 'you to' + object.receiver + ' : ' + object.message
                 }))
             }
-            else if (object.type == "ask_permission") {
+            else if (object.type == "request_video_call") {
                 client2.forEach((client) => {
 
                     if (client.name == object.to) {
                         client.id.send(JSON.stringify({
-                            type: "request",
-                            msg: sender + ' is video calling you'
+                            type: "request_video_call",
+                            msg: sender + ' is video calling you',
+                            from: sender
                         }))
                     }
                     else if ('all' === object.receiver && client.id != self) {
@@ -112,14 +114,25 @@ webServer.on("connection", (self) => {
                     msg: 'requesting to' + object.receiver
                 }))
             }
-            else if (object.type == 'reply') {
-                if (object.reply == 'yes') {
+            // else if (object.type == 'reply') {
+            //     if (object.reply == 'yes') {
 
-                }
+            //     }
+            // }
+            else if (object.type == 'answer_video_call') {
+                client2.forEach((client) => {
+
+                    if (client.name == object.to) {
+                        client.id.send(JSON.stringify({
+                            type: "answer_video_call",
+                            answer: object.answer,
+                            from: sender
+                        }))
+                    }
+                })
             }
             else if (object.type == 'offer') {
                 client2.forEach((client) => {
-                    console.log(object.from)
                     if (client.name == object.to) {
                         client.id.send(JSON.stringify({
                             type: "offer",
@@ -127,7 +140,6 @@ webServer.on("connection", (self) => {
                             from: object.from
                             // msg:sender + ' is video calling you'
                         }))
-                        console.log("offer sent from server")
                     }
                     else if ('all' === object.receiver && client.id != self) {
                         client.id.send(JSON.stringify({
@@ -139,7 +151,6 @@ webServer.on("connection", (self) => {
                 })
             }
             else if (object.type == 'answer') {
-                console.log("answer is going from server ")
                 // console.log(object.to)
                 client2.forEach((client) => {
                     // console.log(object.to)
@@ -152,26 +163,9 @@ webServer.on("connection", (self) => {
                         }))
                     }
                 })
-                
-                console.log("answer sent from server ")
-                // client2.forEach((client) => {
 
-                //     if (client.name == object.to) {
-                //         client.id.send(JSON.stringify({
-                //             type: "offer",
-                //             offer: object.offer,
-                //             from: self
-                //             // msg:sender + ' is video calling you'
-                //         }))
-                //     }
-                //     else if ('all' === object.receiver && client.id != self) {
-                //         client.id.send(JSON.stringify({
-                //             type: "offer",
-                //             offer: object.offer,
-                //             // msg:sender + ' is doing group video call'
-                //         }))
-                //     }
-                // })
+                console.log("answer sent from server ")
+
             }
             else if (object.type == 'send_candidate') {
                 client2.forEach((client) => {

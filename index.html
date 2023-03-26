@@ -5,7 +5,9 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+<link href="./output.css" rel="stylesheet">
+  <title>Video Calling Web</title>
   <script>
     var HOST = location.origin.replace(/^http/, 'ws')
     ws = new WebSocket(HOST);
@@ -20,18 +22,23 @@
   <!-- <label for="output">OUTPUT:</label> -->
   <ul id="output"></ul>
   <br>
-  <label for="to">TO:</label>
+  <label for="to" class="text-3xl">TO:</label>
   <select name="to" id="to"></select>
   <!-- <input type="text" id="to" name="to"> -->
   <input type="text" id="self_msg" placeholder="write message" disabled>
   <button onclick="sendMessage()">SEND</button>
-  <video id="outgoing_video" autoplay></video>
-  <video id="incoming_video" autoplay></video>
+  <div class="flex">
+<video id="outgoing_video" autoplay></video>
+<video id="incoming_video" autoplay></video>
+</div>
   <button id="call_btn" onclick="startCall()">call</button>
   <button id="receive_btn" onclick="receiveCall()">receive</button>
   <button onclick="onOffAudio()">Mute</button>
   <button onclick="onOffVideo()">off video</button>
-  <input type="number" value="4" id="check">
+  <button onclick="accept_call()" id="accept_call_btn">Accept</button>
+  <button onclick="()=>{decline = true}">Decline</button>
+  <button onclick="disconnect()">End Call</button>
+
   <!-- <button onclick="on_off()">video</button> -->
 
 </body>
@@ -40,8 +47,23 @@
   let outgoing_video = document.getElementById("outgoing_video")
   let incoming_video = document.getElementById("incoming_video")
 
-  document.getElementById("receive_btn").style.display = 'none'
+  document.getElementById("receive_btn").style.display = 'hidden'
   btn_condition = 0
+  let accept = 0
+  let decline = 0
+  function accept_call() {
+    accept = true
+  }
+  disconnect = () => {
+    if (newPeer) {
+      newPeer.close()
+      incoming_video.style.display = none
+    }
+  }
+  document.getElementById('accept_call_btn').click = function accept_call() {
+    console.log("fjkdsnfkdskjfnjsfnsf")
+    accept = true
+  }
 
 
   var configuration = {
@@ -57,8 +79,12 @@
     ]
   };
   let newPeer = new RTCPeerConnection(configuration)
+// let newPeer
 
   user_name = document.getElementById("name");
+  to = document.getElementById("to");
+  self_msg = document.getElementById("self_msg")
+
   function storeName() {
     if (user_name != null) {
       ws.send(JSON.stringify({ type: 'store_name', name: user_name.value }))
@@ -73,8 +99,7 @@
     }
   }
 
-  to = document.getElementById("to");
-  self_msg = document.getElementById("self_msg")
+
   self_msg.addEventListener("keypress", sendMessage2);
 
   function sendMessage2(event) {
@@ -99,18 +124,6 @@
     }
   }
 
-  document.getElementById("check").addEventListener("change", function () {
-    newPeer.setRemoteDescription(offer)
-    newPeer.createAnswer((answer) => {
-      newPeer.setLocalDescription(answer)
-      ws.send({
-        type: 'answer',
-        to: obj.from,
-        answer: answer
-      })
-
-    })
-  })
 
   function isJson(str) {
     try {
@@ -120,9 +133,6 @@
     }
     return true;
   }
-
-
-  var offer
 
   newPeer.onicecandidate = ((e) => {
     console.log('ice candiate for', user_name.value)
@@ -137,57 +147,54 @@
     }))
   })
 
-  function receiveCall() {
-
-    ws.send(JSON.stringify({
-      type: 'reply',
-      reply: 'yes'
-    }))
-    btn_condition = 1
-    document.getElementById("receive_btn").style.display = 'none'
-
+  function startCall() {
     if (navigator.mediaDevices.getUserMedia) {
+      
+      ws.send(JSON.stringify({
+        type: "request_video_call",
+        to: to.value
+      }))
+      incoming_video.style.display = 'block'
       navigator.mediaDevices.getUserMedia({
         video: true,
-        // audio: true
+        audio: true
       })
+
         .then((stream) => {
           stream.getTracks().forEach((track) => {
             newPeer.addTrack(track, stream)
           })
-          
           outgoing_video.srcObject = stream
         })
-        // .then((stream) => {
-        //   local_stream = stream
-        //   outgoing_video.srcObject = stream
-        //   newPeer.addStream(local_stream)
-        //   newPeer.onaddstream = (e) => {
-        //     incoming_video.srcObject = e.stream
-        //   }
-
-        //   document.getElementById("check").addEventListener("change", function () {
-        //     newPeer.setRemoteDescription(offer)
-        //     newPeer.createAnswer((answer) => {
-        //       newPeer.setLocalDescription(answer)
-        //       ws.send({
-        //         type: 'answer',
-        //         to: obj.from,
-        //         answer: answer
-        //       })
-        //     })
-        //   })
-
-
-
-
-        // })
         .catch((error) => {
           alert(error)
         })
     }
   }
+  function receiveCall() {
+    if (navigator.mediaDevices.getUserMedia) {
+      incoming_video.style.display = 'block'
 
+      navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      })
+        .then((stream) => {
+          stream.getTracks().forEach((track) => {
+            newPeer.addTrack(track, stream)
+          })
+
+          outgoing_video.srcObject = stream
+        })
+
+        .catch((error) => {
+          alert(error)
+        })
+    }
+  }
+  newPeer.ontrack = function (event) {
+    incoming_video.srcObject = event.streams[0]
+  }
 
 
   ws.onmessage = (data) => {
@@ -195,7 +202,7 @@
     const msg = data.data
 
     if (isJson(msg)) {
-      obj = JSON.parse(msg)
+      let obj = JSON.parse(msg)
       console.log(obj)
 
       if (obj.names != null) {
@@ -219,9 +226,7 @@
             new_option.setAttribute('value', obj.names[i])
             select.appendChild(new_option)
           }
-
         }
-
       }
       else if (obj.type == 'msg') {
         ul = document.getElementById("output")
@@ -229,30 +234,62 @@
         li.appendChild(document.createTextNode(obj.msg))
         ul.appendChild(li)
       }
-      else if (obj.type == 'request') {
-        alert(obj.msg)
-        document.getElementById("receive_btn").style.display = 'block'
 
-        interval = setInterval(stopRequest, 10000)
 
-        function stopRequest() {
-          if (btn_condition == 0) {
-            document.getElementById("receive_btn").style.display = 'none'
-            ws.send(JSON.stringify({
-              type: 'reply',
-              reply: 'no'
-            }))
+      else if (obj.type == 'request_video_call') {
+        receiveCall()
+        times = 0
+        const wait_interval = setInterval(
+          () => {
 
+            console.log(accept, decline)
+            times++
+            if (accept == true) {
+              // receiveCall()
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: true
+              }))
+
+              console.log('accepted')
+              accept = false
+              clearInterval(wait_interval)
+            }
+            else if (decline == true) {
+              console.log('rejected')
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: false
+              }))
+              decline = false
+              clearInterval(wait_interval)
+            }
+            else if (times == 10) {
+              console.log('time end')
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: false
+              }))
+              clearInterval(wait_interval)
+            }
           }
-          clearInterval(interval)
-          btn_condition = 0
+          , 1000)
+      }
+      else if (obj.type == 'answer_video_call') {
+        if (obj.answer == true) {
+          sendOffer()
+        }
+        else {
+          alert('video call denied')
         }
       }
       else if (obj.type == 'offer') {
         sender = obj.from
         out = new RTCSessionDescription(obj.offer)
         newPeer.setRemoteDescription(out).then(() => {
-
           newPeer.createAnswer().then((answer) => {
             newPeer.setLocalDescription(answer)
             ws.send(JSON.stringify({
@@ -265,6 +302,8 @@
           })
         })
       }
+
+
       else if (obj.type == 'answer') {
         answer = new RTCSessionDescription(obj.answer)
         newPeer.setRemoteDescription(answer).then(() => {
@@ -280,63 +319,28 @@
     }
   }
 
-  newPeer.ontrack = function (event) {
-    incoming_video.srcObject = event.streams[0]
-  }
 
 
 
-  function startCall() {
 
-    if (navigator.mediaDevices.getUserMedia) {
 
+  sendOffer = () => {
+    // sending call offer to other end
+    newPeer.createOffer((offer) => {
+      console.log('username check', user_name.value)
+      newPeer.setLocalDescription(offer)
       ws.send(JSON.stringify({
-        type: "ask_permission",
-        to: to.value
+        type: "offer",
+        offer: offer,
+        to: to.value,
+        from: user_name.value
       }))
-
-      navigator.mediaDevices.getUserMedia({
-        video: true,
-        // audio: true
+      console.log('offer', offer)
+    },
+      (error) => {
+        console.log(error)
       })
-
-        .then((stream) => {
-          stream.getTracks().forEach((track)=>{
-            newPeer.addTrack(track, stream)
-          })
-          outgoing_video.srcObject=stream
-          // local_stream = stream
-          // outgoing_video.srcObject = stream
-          // newPeer.addStream(local_stream)
-          // newPeer.onaddstream = (e) => {
-          //   incoming_video.srcObject = e.stream
-          // }
-
-          // sending call offer to other end
-          newPeer.createOffer((offer) => {
-            console.log('username check', user_name.value)
-            newPeer.setLocalDescription(offer)
-            ws.send(JSON.stringify({
-              type: "offer",
-              offer: offer,
-              to: to.value,
-              from: user_name.value
-            }))
-            console.log('offer', offer)
-          },
-            (error) => {
-              console.log(error)
-            })
-        })
-        .catch((error) => {
-          alert(error)
-        })
-    }
   }
-
-
-
-
 
 
 
