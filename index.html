@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script>
+    var HOST = location.origin.replace(/^http/, 'ws')
+    ws = new WebSocket(HOST);
+  </script>
+</head>
+
+<body>
+
+  <label for="name"></label>NAME : <input type="text" id="name" name="name">
+  <button onclick="storeName()">SUBMIT</button>
+  <br>
+  <!-- <label for="output">OUTPUT:</label> -->
+  <ul id="output"></ul>
+  <br>
+  <label for="to">TO:</label>
+  <select name="to" id="to"></select>
+  <!-- <input type="text" id="to" name="to"> -->
+  <input type="text" id="self_msg" placeholder="write message" disabled>
+  <button onclick="sendMessage()">SEND</button>
+  <video id="outgoing_video" autoplay></video>
+  <video id="incoming_video" autoplay></video>
+  <button id="call_btn" onclick="startCall()">call</button>
+  <button id="receive_btn" onclick="receiveCall()">receive</button>
+  <button onclick="onOffAudio()">Mute</button>
+  <button onclick="onOffVideo()">off video</button>
+  <input type="number" value="4" id="check">
+  <!-- <button onclick="on_off()">video</button> -->
+
+</body>
+<!-- <script src="client_side.js"></script> -->
+<script>
+  let outgoing_video = document.getElementById("outgoing_video")
+  let incoming_video = document.getElementById("incoming_video")
+
+  document.getElementById("receive_btn").style.display = 'none'
+  btn_condition = 0
+
+
+  var configuration = {
+    "iceServers": [
+      {
+        "urls": "stun:stun.1.google.com:19302"
+      },
+      {
+        urls: 'turn:192.158.29.39:3478?transport=tcp',
+        credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+        username: '28224511:1379330808'
+      }
+    ]
+  };
+  let newPeer = new RTCPeerConnection(configuration)
+
+  user_name = document.getElementById("name");
+  function storeName() {
+    if (user_name != null) {
+      ws.send(JSON.stringify({ type: 'store_name', name: user_name.value }))
+      document.getElementById('self_msg').disabled = false
+    }
+  }
+  user_name.addEventListener("keypress", storeName2);
+  function storeName2(event) {
+    if (user_name != null && event.key == "Enter") {
+      ws.send(JSON.stringify({ type: "store_name", name: user_name.value }))
+      document.getElementById('self_msg').disabled = false
+    }
+  }
+
+  to = document.getElementById("to");
+  self_msg = document.getElementById("self_msg")
+  self_msg.addEventListener("keypress", sendMessage2);
+
+  function sendMessage2(event) {
+    if (to != null && self_msg != null && event.key == "Enter") {
+      ws.send(JSON.stringify({
+        type: "send_message",
+        receiver: to.value,
+        message: self_msg.value
+      }))
+      self_msg.value = ''
+    }
+  }
+
+  function sendMessage() {
+    if (to != null && self_msg != null) {
+      ws.send(JSON.stringify({
+        type: "send_message",
+        receiver: to.value,
+        message: self_msg.value
+      }))
+      self_msg.value = ''
+    }
+  }
+
+  document.getElementById("check").addEventListener("change", function () {
+    newPeer.setRemoteDescription(offer)
+    newPeer.createAnswer((answer) => {
+      newPeer.setLocalDescription(answer)
+      ws.send({
+        type: 'answer',
+        to: obj.from,
+        answer: answer
+      })
+
+    })
+  })
+
+  function isJson(str) {
+    try {
+      JSON.parse(str);
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+
+  var offer
+
+  newPeer.onicecandidate = ((e) => {
+    console.log('ice candiate for', user_name.value)
+    if (e.candidate == null) {
+      console.log('ice candiate null')
+      return
+    }
+    ws.send(JSON.stringify({
+      type: "send_candidate",
+      candidate: e.candidate,
+      to: to.value
+    }))
+  })
+
+  function receiveCall() {
+
+    ws.send(JSON.stringify({
+      type: 'reply',
+      reply: 'yes'
+    }))
+    btn_condition = 1
+    document.getElementById("receive_btn").style.display = 'none'
+
+    if (navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({
+        video: true,
+        // audio: true
+      })
+        .then((stream) => {
+          stream.getTracks().forEach((track) => {
+            newPeer.addTrack(track, stream)
+          })
+          
+          outgoing_video.srcObject = stream
+        })
+        // .then((stream) => {
+        //   local_stream = stream
+        //   outgoing_video.srcObject = stream
+        //   newPeer.addStream(local_stream)
+        //   newPeer.onaddstream = (e) => {
+        //     incoming_video.srcObject = e.stream
+        //   }
+
+        //   document.getElementById("check").addEventListener("change", function () {
+        //     newPeer.setRemoteDescription(offer)
+        //     newPeer.createAnswer((answer) => {
+        //       newPeer.setLocalDescription(answer)
+        //       ws.send({
+        //         type: 'answer',
+        //         to: obj.from,
+        //         answer: answer
+        //       })
+        //     })
+        //   })
+
+
+
+
+        // })
+        .catch((error) => {
+          alert(error)
+        })
+    }
+  }
+
+
+
+  ws.onmessage = (data) => {
+
+    const msg = data.data
+
+    if (isJson(msg)) {
+      obj = JSON.parse(msg)
+      console.log(obj)
+
+      if (obj.names != null) {
+        select = document.getElementById("to")
+
+        for (i = select.options.length - 1; i >= 0; i--) {
+          select.remove(i);
+        }
+        if (obj.names.length > 2) {
+          new_option = document.createElement("option")
+          text = document.createTextNode('all')
+          new_option.appendChild(text)
+          new_option.setAttribute('value', 'all')
+          select.appendChild(new_option)
+        }
+        for (i = 0; i < obj.names.length; i++) {
+          if (user_name.value != obj.names[i]) {
+            new_option = document.createElement("option")
+            text = document.createTextNode(obj.names[i])
+            new_option.appendChild(text)
+            new_option.setAttribute('value', obj.names[i])
+            select.appendChild(new_option)
+          }
+
+        }
+
+      }
+      else if (obj.type == 'msg') {
+        ul = document.getElementById("output")
+        li = document.createElement("li")
+        li.appendChild(document.createTextNode(obj.msg))
+        ul.appendChild(li)
+      }
+      else if (obj.type == 'request') {
+        alert(obj.msg)
+        document.getElementById("receive_btn").style.display = 'block'
+
+        interval = setInterval(stopRequest, 10000)
+
+        function stopRequest() {
+          if (btn_condition == 0) {
+            document.getElementById("receive_btn").style.display = 'none'
+            ws.send(JSON.stringify({
+              type: 'reply',
+              reply: 'no'
+            }))
+
+          }
+          clearInterval(interval)
+          btn_condition = 0
+        }
+      }
+      else if (obj.type == 'offer') {
+        sender = obj.from
+        out = new RTCSessionDescription(obj.offer)
+        newPeer.setRemoteDescription(out).then(() => {
+
+          newPeer.createAnswer().then((answer) => {
+            newPeer.setLocalDescription(answer)
+            ws.send(JSON.stringify({
+              type: 'answer',
+              to: sender,
+              answer: answer
+            }))
+          }).catch((error) => {
+            console.error(error)
+          })
+        })
+      }
+      else if (obj.type == 'answer') {
+        answer = new RTCSessionDescription(obj.answer)
+        newPeer.setRemoteDescription(answer).then(() => {
+          console.log('og')
+        })
+      }
+      else if (obj.type == 'store_candidate') {
+        candidate = new RTCIceCandidate(obj.candidate)
+        newPeer.addIceCandidate(candidate).then(() => {
+          console.log('candiate added')
+        })
+      }
+    }
+  }
+
+  newPeer.ontrack = function (event) {
+    incoming_video.srcObject = event.streams[0]
+  }
+
+
+
+  function startCall() {
+
+    if (navigator.mediaDevices.getUserMedia) {
+
+      ws.send(JSON.stringify({
+        type: "ask_permission",
+        to: to.value
+      }))
+
+      navigator.mediaDevices.getUserMedia({
+        video: true,
+        // audio: true
+      })
+
+        .then((stream) => {
+          stream.getTracks().forEach((track)=>{
+            newPeer.addTrack(track, stream)
+          })
+          outgoing_video.srcObject=stream
+          // local_stream = stream
+          // outgoing_video.srcObject = stream
+          // newPeer.addStream(local_stream)
+          // newPeer.onaddstream = (e) => {
+          //   incoming_video.srcObject = e.stream
+          // }
+
+          // sending call offer to other end
+          newPeer.createOffer((offer) => {
+            console.log('username check', user_name.value)
+            newPeer.setLocalDescription(offer)
+            ws.send(JSON.stringify({
+              type: "offer",
+              offer: offer,
+              to: to.value,
+              from: user_name.value
+            }))
+            console.log('offer', offer)
+          },
+            (error) => {
+              console.log(error)
+            })
+        })
+        .catch((error) => {
+          alert(error)
+        })
+    }
+  }
+
+
+
+
+
+
+
+  // audio = true
+
+  // function onOffAudio() {
+  //   local_stream.getAudioTracks()[0].enabled = !audio
+  //   audio = !audio
+  // }
+  // video = true
+
+  // function onOffVideo() {
+  //   local_stream.getVideoTracks()[0].enabled = !video
+  //   video = !video
+  // }
+
+
+
+  // ws.onerror = (erro) => {
+  //   document.write(erro)
+  // }
+
+  // ws.onclose = () => {
+  //   select = document.getElementById("to")
+
+  //   for (i = 0; i < select.options.length; i++) {
+  //     select.remove(i);
+  //   }
+  //   console.log("connection closed")
+  // }
+
+</script>
+
+</html>

@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "expres": "^0.0.5",
+    "express": "^4.18.1",
+    "nodemon": "^2.0.22",
+    "ws": "^8.8.1"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "video-calling",
+  "version": "1.0.0",
+  "main": "client_side.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/himanshukumargupta11012/chatting-website.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/himanshukumargupta11012/chatting-website/issues"
+  },
+  "homepage": "https://github.com/himanshukumargupta11012/chatting-website#readme",
+  "description": ""
+}
