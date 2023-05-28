@@ -2,7 +2,15 @@
 module.exports = {
   content: ['./*'],
   theme: {
-    extend: {},
+    extend: {
+      flexShrink: {
+        2: '2'
+      }
+    }
   },
   plugins: [],
+  // corePlugins: {
+  //   preflight: false,
+  // },
+
 }

@@ -1,23 +1,30 @@
 
-express = require('express')
+const express = require('express')
 const { Server } = require('ws');
+var path = require('path');
 
+const app = express()
 const PORT = process.env.PORT || 3000;
 const INDEX = '/index.html';
 
-const server = express()
-    .use((req, res) => res.sendFile(INDEX, { root: __dirname }))
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/public/output.css', (req, res) => {
+    res.sendFile(__dirname + '/public/output.css')
+})
+
+app.get('/public/client.js', (req, res) => {
+    res.sendFile(__dirname + '/public/client.js')
+})
+
+const server = app
+    .get('*', (req, res) => res.sendFile(INDEX, { root: __dirname }))
     .listen(PORT, () => console.log(`Listening on ${PORT}`));
 
 
 
 const webServer = new Server({ server });
 
-// const webSocketSv = require("ws")
-
-// const webServer = new webSocketSv.Server({
-//     port: 3000
-// })
 
 webServer.on('listening', () => {
     console.log("server started")
@@ -40,7 +47,6 @@ webServer.on("connection", (self) => {
 
 
     self.on('message', (messag) => {
-        // console.log(messag.toString())
 
         if (isJson(messag.toString())) {
             let object = JSON.parse(messag.toString())
@@ -55,10 +61,6 @@ webServer.on("connection", (self) => {
                     name: object.name,
                     id: self
                 })
-                self.send(JSON.stringify({
-                    type: "msg",
-                    msg: "hello " + object.name
-                }))
 
                 all_names = { names: [] }
                 client2.forEach((client) => {
@@ -70,26 +72,28 @@ webServer.on("connection", (self) => {
                 })
             }
             else if (object.type == "send_message") {
-                // let object = JSON.parse(messag.toString())
 
                 client2.forEach((client) => {
 
                     if (client.name == object.receiver) {
                         client.id.send(JSON.stringify({
                             type: "msg",
-                            msg: sender + ' : ' + object.message
+                            sender: sender,
+                            msg: object.message
                         }))
                     }
                     else if ('all' === object.receiver && client.id != self) {
                         client.id.send(JSON.stringify({
                             type: "msg",
-                            msg: sender + ' : ' + object.message
+                            sender: sender,
+                            msg: object.message
                         }))
                     }
                 })
                 self.send(JSON.stringify({
                     type: "msg",
-                    msg: 'you to' + object.receiver + ' : ' + object.message
+                    sender: "you",
+                    msg: object.message
                 }))
             }
             else if (object.type == "request_video_call") {
@@ -98,7 +102,6 @@ webServer.on("connection", (self) => {
                     if (client.name == object.to) {
                         client.id.send(JSON.stringify({
                             type: "request_video_call",
-                            msg: sender + ' is video calling you',
                             from: sender
                         }))
                     }
@@ -114,11 +117,7 @@ webServer.on("connection", (self) => {
                     msg: 'requesting to' + object.receiver
                 }))
             }
-            // else if (object.type == 'reply') {
-            //     if (object.reply == 'yes') {
 
-            //     }
-            // }
             else if (object.type == 'answer_video_call') {
                 client2.forEach((client) => {
 
@@ -175,36 +174,25 @@ webServer.on("connection", (self) => {
                             type: "store_candidate",
                             candidate: object.candidate,
                             from: sender
-                            // msg:sender + ' is video calling you'
                         }))
                     }
                 })
             }
+            else if (object.type == 'end_call') {
+                client2.forEach((client) => {
+                    if (client.name == object.other) {
+                        client.id.send(
+                            JSON.stringify({
+                                type: "end_call",
+                                other: object.other
+                            })
+                        )
+                    }
+                })
+            }
 
-            // else if(object.type==){}
         }
 
-
-
-        // else {
-        //     client2.forEach((client) => {
-        //         if (client.name == "aman")
-        //             client.id.send('\n', object.name, ':', messag.toString());
-        //         console.log(messag.toString())
-        //     })
-        // }
-
-        // webServer.clients.forEach((client)=>{
-        //     if(self==client && client.readyState === webSocketSv.OPEN)
-        //     client.send(messag.toString());
-        //     console.log(client)
-
-        // webServer.clients.forEach((client)=>{
-        //     if(self!=client && client.readyState === webSocketSv.OPEN)
-        //     client.send(messag.toString());
-        //     console.log(client)
-
-        //  });
     })
 
     self.on("close", () => {

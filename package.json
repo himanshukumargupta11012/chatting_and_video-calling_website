@@ -1,12 +1,14 @@
 {
   "dependencies": {
-    "expres": "^0.0.5",
     "express": "^4.18.1",
     "nodemon": "^2.0.22",
+    "postcss-cli": "^10.1.0",
+    "tailwindcss-cli": "^0.1.2",
     "ws": "^8.8.1"
   },
   "scripts": {
-    "start": "node server.js"
+    "server": "node server.js",
+    "start": "nodemon --watch index.html --watch public/client.js --watch server.js --exec \"npx postcss input.css -o public/output.css && npm run server\""
   },
   "name": "video-calling",
   "version": "1.0.0",
@@ -23,6 +25,8 @@
   "homepage": "https://github.com/himanshukumargupta11012/chatting-website#readme",
   "description": "",
   "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.21",
     "tailwindcss": "^3.2.7"
   }
 }
