@@ -163,7 +163,7 @@ function startCall() {
 
     navigator.mediaDevices.getUserMedia({
       video: true,
-      // audio: true
+      audio: true
     })
 
       .then((stream) => {
@@ -183,7 +183,7 @@ function receiveCall() {
 
     navigator.mediaDevices.getUserMedia({
       video: true,
-      // audio: true
+      audio: true
     })
       .then((stream) => {
         stream.getTracks().forEach((track) => {
@@ -383,32 +383,26 @@ sendOffer = () => {
     })
 }
 
-
-
-
-
-// function onOffAudio() {
-//   local_stream.getAudioTracks()[0].enabled = !audio
-//   audio = !audio
-// }
 video = true
 audio = true
 
-function onOffVideo() {
+function onOffVideo(btn) {
   video = !video
 
   if (!video) {
+    btn.innerText = "On Video";
     outgoing_video.srcObject.getVideoTracks()[0].stop()
     // sender = newPeer.getSenders().find(s => s.track && s.track.kind === 'video')
     // sender.replaceTrack(null)
   }
 
   else {
+    btn.innerText = "Off Video";
     if (navigator.mediaDevices.getUserMedia) {
 
       navigator.mediaDevices.getUserMedia({
         video: true,
-        // audio: true
+        audio: true
       })
         .then((stream) => {
           stream.getVideoTracks().forEach((track) => {
@@ -437,17 +431,17 @@ function onOffVideo() {
   outgoing_video.currentTime = 0
 }
 
+function onOffAudio(btn) {
+  audio = !audio
 
+  if (!audio) {
+    btn.innerText = "Unmute";
+    outgoing_video.srcObject.getAudioTracks()[0].enabled = false
+  }
 
-  // ws.onerror = (erro) => {
-  //   document.write(erro)
-  // }
+  else {
+    btn.innerText = "mute";
+    outgoing_video.srcObject.getAudioTracks()[0].enabled = true
+  }
 
-  // ws.onclose = () => {
-  //   select = document.getElementById("to")
-
-  //   for (i = 0; i < select.options.length; i++) {
-  //     select.remove(i);
-  //   }
-  //   console.log("connection closed")
-  // }
+}

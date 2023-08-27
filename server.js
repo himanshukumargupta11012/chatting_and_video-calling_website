@@ -30,7 +30,6 @@ webServer.on('listening', () => {
     console.log("server started")
 })
 
-// const clients=new Map();
 const client2 = [];
 
 webServer.on("connection", (self) => {
