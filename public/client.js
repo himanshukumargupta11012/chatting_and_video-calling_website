@@ -112,7 +112,7 @@ disconnect2 = () => {
   if (newPeer) {
 
     outgoing_video.srcObject.getVideoTracks()[0].stop()
-
+    outgoing_video.srcObject.getAudioTracks()[0].stop()
     newPeer.close()
     newPeer = new RTCPeerConnection(configuration)
 
