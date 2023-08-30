@@ -1,28 +1,30 @@
-answer_btn = document.getElementById('answer_btn')
-let outgoing_video = document.getElementById("outgoing_video")
-let incoming_video = document.getElementById("incoming_video")
-name_btn = document.getElementById("name_btn")
-
-
+answer_btn = document.getElementById('answer_btn');
+let outgoing_video = document.getElementById("outgoing_video");
+let incoming_video = document.getElementById("incoming_video");
+name_btn = document.getElementById("name_btn");
+msg_bar = document.getElementById("msg_sender");
+select = document.getElementById("to")
 user_name = document.getElementById("name");
 to = document.getElementById("to");
-self_msg = document.getElementById("self_msg")
+self_msg = document.getElementById("self_msg");
+alert_box = document.getElementById("alert_box");
+msgs = document.getElementById("msgs");
 
 
 // ---------- function for taking name ----------
 function storeName() {
   if (user_name.value != "") {
     document.getElementById("name_btn").disabled = true;
-    document.getElementById('self_msg').disabled = false;
+    self_msg.disabled = false;
 
     ws.send(JSON.stringify({ type: 'store_name', name: user_name.value }))
 
-    document.getElementById("msg_sender").classList.replace("hidden", "flex");
+    msg_bar.classList.replace("hidden", "flex");
     user_name.blur()
     self_msg.focus()
   }
   else {
-    alert("Name can't be empty")
+    showAlert("Name can't be empty")
   }
 }
 user_name.addEventListener("keypress", storeName2);
@@ -42,17 +44,25 @@ function sendMessage() {
       receiver: to.value,
       message: self_msg.value
     }))
-    self_msg.value = ''
+    msg_map[to.value].push({
+      sender: "you",
+      msg: self_msg.value
+    })
+    
+
+    addMsg("you", self_msg.value);
+
+    self_msg.value = '';
   }
 }
 
 self_msg.addEventListener("keyup", sendMessage2);
 
 function sendMessage2(event) {
-  if (self_msg.value != ""){
+  if (self_msg.value != "") {
     document.getElementById("msg_send_btn").disabled = false
   }
-  else{
+  else {
     document.getElementById("msg_send_btn").disabled = true
   }
   if (event.key == "Enter") {
@@ -61,7 +71,7 @@ function sendMessage2(event) {
 }
 
 
-
+// checking json or not
 function isJson(str) {
   try {
     JSON.parse(str);
@@ -73,6 +83,9 @@ function isJson(str) {
 
 let accept = false
 let decline = false
+var msg_map = {
+  "all": []
+};
 
 acceptCall = () => {
   accept = true
@@ -83,7 +96,7 @@ declineCall = () => {
 
 disconnect = () => {
   disconnect2()
-  if (newPeer){
+  if (newPeer) {
     ws.send(JSON.stringify({
       type: "end_call",
       other: to.value
@@ -97,23 +110,21 @@ disconnect2 = () => {
   document.getElementById("call").classList.replace("block", "hidden")
 
   if (newPeer) {
-    
+
     outgoing_video.srcObject.getVideoTracks()[0].stop()
 
     newPeer.close()
     newPeer = new RTCPeerConnection(configuration)
 
     iceAndTrack()
-    
+
     return newPeer
   }
 }
 
-iceAndTrack = ()=>{
+iceAndTrack = () => {
   newPeer.onicecandidate = ((e) => {
-    console.log('ice candiate for', user_name.value)
     if (e.candidate == null) {
-      console.log('ice candiate null')
       return
     }
     ws.send(JSON.stringify({
@@ -124,7 +135,6 @@ iceAndTrack = ()=>{
   })
 
   newPeer.ontrack = function (event) {
-    console.log('track')
     incoming_video.srcObject = event.streams[0]
   }
 }
@@ -148,7 +158,7 @@ var newPeer = new RTCPeerConnection(configuration)
 iceAndTrack()
 
 function startCall() {
-  if (to.value == ""){
+  if (to.value == "") {
     return
   }
   document.getElementById("call_btn").disabled = true
@@ -203,6 +213,70 @@ function receiveCall() {
 disableEnable = (btn) => {
   btn.classList.add("")
 }
+showAlert = (msg) => {
+  alert_box.firstElementChild.innerText = msg;
+  alert_box.classList.replace("opacity-0", "opacity-100");
+  alert_box.firstElementChild.nextElementSibling.classList.add("w-full");
+
+
+  setTimeout(() => {
+    alert_box.classList.replace("opacity-100", "opacity-0");
+    alert_box.firstElementChild.nextElementSibling.classList.remove("w-full")
+  }, 2000)
+}
+
+singleUserCheck = () => {
+  if (to.options.length == 0) {
+    msg_bar.classList.replace("flex", "hidden");
+
+    showAlert("No one in chat. Send url and ask to join");
+
+  }
+  else if (msg_bar.classList.contains("hidden"))
+    msg_bar.classList.replace("hidden", "flex")
+}
+
+addSelect = (val, place = true) => {
+  new_option = document.createElement("option")
+  new_option.innerText = val
+  new_option.setAttribute('value', val)
+  if (place)
+    select.appendChild(new_option)
+  else
+    to.insertBefore(new_option, to.firstElementChild)
+}
+
+addMsg = (sender, msg)=>{
+  msg_element = document.getElementById("msg_element").cloneNode(true)
+  msg_element.classList.replace("hidden", "block")
+  div1 = msg_element.firstElementChild
+  div1.innerText = sender;
+  
+  div2 = div1.nextElementSibling
+  div2.innerText = msg;
+
+  if (sender == "you")
+  msg_element.style.marginLeft = "auto"
+
+  else
+    msg_element.style.marginRight = "auto"
+
+  msgs.appendChild(msg_element)
+}
+
+toChanged = ()=>{
+  if(to.value == "all") {
+    document.getElementById("call_btn").disabled = true
+  }
+  else {
+    document.getElementById("call_btn").disabled = false
+  }
+  msgs.innerHTML = "";
+  for(let i = 0; i < msg_map[to.value].length; i++) {
+    addMsg(msg_map[to.value][i].sender, msg_map[to.value][i].msg)
+  }
+
+}
 
 ws.onmessage = (data) => {
 
@@ -211,164 +285,144 @@ ws.onmessage = (data) => {
   if (isJson(msg)) {
     let obj = JSON.parse(msg)
     console.log(obj.type)
+    switch (obj.type) {
+      case "add_old":
 
-    if (obj.names != null) {
-      select = document.getElementById("to")
-
-      for (i = select.options.length - 1; i >= 0; i--) {
-        select.remove(i);
-      }
-      if (obj.names.length > 2) {
-        new_option = document.createElement("option")
-        text = document.createTextNode('all')
-        new_option.appendChild(text)
-        new_option.setAttribute('value', 'all')
-        select.appendChild(new_option)
-      }
-      for (i = 0; i < obj.names.length; i++) {
-        if (user_name.value != obj.names[i]) {
-          new_option = document.createElement("option")
-          text = document.createTextNode(obj.names[i])
-          new_option.appendChild(text)
-          new_option.setAttribute('value', obj.names[i])
-          select.appendChild(new_option)
+        if (obj.names.length > 1) {
+          addSelect("all");
         }
-      }
-    }
-    else if (obj.type == 'msg') {
-      ul = document.getElementById("msgs")
-
-      msg_element = document.getElementById("msg_element").cloneNode(true)
-      msg_element.style.display = 'block'
-
-      div1 = document.createElement('div');
-      div1.setAttribute("class", "block text-xs");
-      div1.textContent = obj.sender;
-      msg_element.appendChild(div1);
-
-      div2 = document.createElement('div');
-      div2.setAttribute("class", "block");
-      div2.textContent = obj.msg;
-      msg_element.appendChild(div2);
-
-      if (obj.sender == "you")
-        msg_element.style.marginLeft = "auto"
-
-      else
-        msg_element.style.marginRight = "auto"
-
-      ul.appendChild(msg_element)
-    }
-
-    else if (obj.type == 'end_call') {
-
-      console.log("disconnect")
-      disconnect2()
-    }
-
-    else if (obj.type == 'request_video_call') {
-      document.getElementById("call").classList.replace("hidden", "block");
-      receiveCall()
-      incoming_call_message = document.createElement('p')
-      console.log(obj)
-      incoming_call_message.appendChild(document.createTextNode(obj.from + ' is video calling you'))
-      answer_btn.prepend(incoming_call_message)
-      times = 0
-      answer_btn.classList.replace("hidden", "block")
-      const wait_interval = setInterval(
-        () => {
-
-          console.log(accept, decline)
-          times++
-          if (accept == true) {
-            // receiveCall()
-            ws.send(JSON.stringify({
-              type: 'answer_video_call',
-              to: obj.from,
-              answer: true
-            }))
-
-            console.log('accepted')
-            accept = false
-            answer_btn.classList.replace("block", "hidden")
-            clearInterval(wait_interval)
-          }
-          else if (decline == true) {
-            console.log('rejected')
-            disconnect()
-            ws.send(JSON.stringify({
-              type: 'answer_video_call',
-              to: obj.from,
-              answer: false
-            }))
-            decline = false
-            answer_btn.classList.replace("block", "hidden")
-            clearInterval(wait_interval)
-          }
-          else if (times == 20) {
-            console.log('time end')
-            disconnect()
-            ws.send(JSON.stringify({
-              type: 'answer_video_call',
-              to: obj.from,
-              answer: false
-            }))
-            answer_btn.style.display = 'none'
-            clearInterval(wait_interval)
-          }
+        for (i = 0; i < obj.names.length; i++) {
+          addSelect(obj.names[i]);
+          msg_map[obj.names[i]] = [];
         }
-        , 1000)
-    }
-    else if (obj.type == 'answer_video_call') {
-      if (obj.answer == true) {
-        sendOffer()
-      }
-      else {
-        alert('video call denied')
-      }
-    }
-    else if (obj.type == 'offer') {
-      sender = obj.from
-      out = new RTCSessionDescription(obj.offer)
-      newPeer.setRemoteDescription(out).then(() => {
-        newPeer.createAnswer().then((answer) => {
-          newPeer.setLocalDescription(answer)
-          ws.send(JSON.stringify({
-            type: 'answer',
-            to: sender,
-            answer: answer
-          }))
-        }).catch((error) => {
-          console.error(error)
+        singleUserCheck();
+        break;
+
+      case "add_new":
+        addSelect(obj.name);
+        msg_map[obj.name] = [];
+        if (to.options.length == 2) {
+          addSelect("all", false);
+        }
+        singleUserCheck();
+        break;
+
+      case "remove_user":
+        curr = to.firstElementChild;
+        while (curr.value != obj.name) {
+          if (curr.innerText == "all") {
+            curr2 = curr;
+            curr = curr.nextElementSibling;
+            curr2.remove();
+          }
+          else
+            curr = curr.nextElementSibling;
+        }
+        curr.remove();
+
+
+        // for (i = select.options.length - 1; i >= 0; i--) {
+        //   select.remove(i);
+        // }
+        singleUserCheck();
+        break;
+      case "msg":
+
+        if(to.value == obj.sender) {
+          addMsg(obj.sender, obj.msg);
+        }
+
+        msg_map[obj.sender].push(obj);
+        break;
+      case "end_call":
+        disconnect2()
+        break;
+      case "request_video_call":
+        document.getElementById("call").classList.replace("hidden", "block");
+        receiveCall()
+
+        answer_btn.firstElementChild.innerText = obj.from + ' is video calling you';
+        times = 0;
+        answer_btn.classList.replace("hidden", "block")
+        const wait_interval = setInterval(
+          () => {
+            times++
+            if (accept == true) {
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: true
+              }))
+
+              accept = false
+              answer_btn.classList.replace("block", "hidden")
+              clearInterval(wait_interval)
+            }
+            else if (decline == true) {
+              disconnect()
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: false
+              }))
+              decline = false
+              answer_btn.classList.replace("block", "hidden")
+              clearInterval(wait_interval)
+            }
+            else if (times == 20) {
+              disconnect()
+              ws.send(JSON.stringify({
+                type: 'answer_video_call',
+                to: obj.from,
+                answer: false
+              }))
+              answer_btn.style.display = 'none'
+              clearInterval(wait_interval)
+            }
+          }
+          , 1000)
+        break;
+      case "answer_video_call":
+        if (obj.answer == true) {
+          sendOffer()
+        }
+        else {
+          showAlert("video call denied")
+        }
+        break;
+      case "offer":
+        sender = obj.from
+        out = new RTCSessionDescription(obj.offer)
+        newPeer.setRemoteDescription(out).then(() => {
+          newPeer.createAnswer().then((answer) => {
+            newPeer.setLocalDescription(answer)
+            ws.send(JSON.stringify({
+              type: 'answer',
+              to: sender,
+              answer: answer
+            }))
+          }).catch((error) => {
+            console.error(error)
+          })
         })
-      })
-    }
-
-
-    else if (obj.type == 'answer') {
-      answer = new RTCSessionDescription(obj.answer)
-      newPeer.setRemoteDescription(answer).then(() => {
-        console.log('og')
-      })
-    }
-    else if (obj.type == 'store_candidate') {
-      candidate = new RTCIceCandidate(obj.candidate)
-      newPeer.addIceCandidate(candidate).then(() => {
-        console.log('candiate added')
-      })
+        break;
+      case "answer":
+        answer = new RTCSessionDescription(obj.answer)
+        newPeer.setRemoteDescription(answer).then(() => {
+        })
+        break;
+      case "store_candidate":
+        candidate = new RTCIceCandidate(obj.candidate)
+        newPeer.addIceCandidate(candidate).then(() => {
+          console.log('candidate added')
+        })
     }
   }
 }
 
-
-
-
-
-
 sendOffer = () => {
   // sending call offer to other end
   newPeer.createOffer((offer) => {
-    console.log('username check', user_name.value)
     newPeer.setLocalDescription(offer)
     ws.send(JSON.stringify({
       type: "offer",
@@ -376,7 +430,6 @@ sendOffer = () => {
       to: to.value,
       from: user_name.value
     }))
-    console.log('offer', offer)
   },
     (error) => {
       console.log(error)
@@ -407,15 +460,11 @@ function onOffVideo(btn) {
         .then((stream) => {
           stream.getVideoTracks().forEach((track) => {
 
-            // newPeer.addTrack(track, stream)
             const sender = newPeer.getSenders().find(s => s.track && s.track.kind === 'video');
-            console.log("ff")
             if (sender) {
-              console.log("sender")
-              sender.replaceTrack(track); // Replace with the new video track
+              sender.replaceTrack(track);
             } else {
-              console.log("new")
-              newPeer.addTrack(track, stream); // Add the new video track
+              newPeer.addTrack(track, stream);
             }
           })
 

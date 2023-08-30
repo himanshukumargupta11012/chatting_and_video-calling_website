@@ -7,15 +7,24 @@ const app = express()
 const PORT = process.env.PORT || 3000;
 const INDEX = '/index.html';
 
+// public files
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.get('/public/output.css', (req, res) => {
     res.sendFile(__dirname + '/public/output.css')
 })
-
 app.get('/public/client.js', (req, res) => {
     res.sendFile(__dirname + '/public/client.js')
 })
+
+
+function isJson(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 const server = app
     .get('*', (req, res) => res.sendFile(INDEX, { root: __dirname }))
@@ -35,21 +44,14 @@ const client2 = [];
 webServer.on("connection", (self) => {
     console.log("connected")
 
-    function isJson(str) {
-        try {
-            JSON.parse(str);
-        } catch (e) {
-            return false;
-        }
-        return true;
-    }
-
-
+    
     self.on('message', (messag) => {
 
         if (isJson(messag.toString())) {
             let object = JSON.parse(messag.toString())
+
             console.log(object.type)
+            
             client2.forEach((client) => {
                 if (client.id == self)
                     sender = client.name
@@ -60,14 +62,25 @@ webServer.on("connection", (self) => {
                     name: object.name,
                     id: self
                 })
-
-                all_names = { names: [] }
-                client2.forEach((client) => {
-                    if (client.id.readyState === 1)
-                        all_names.names.push(client.name)
+                old_names = {
+                    type: "add_old",
+                    names: []
+                };
+                client2.forEach((client)=>{
+                    if(client.id != self) {
+                        old_names.names.push(client.name)
+                    }
                 })
+                self.send(JSON.stringify(old_names));
+
+                new_name = { 
+                    type: "add_new",
+                    name: object.name
+                }
+
                 client2.forEach((client) => {
-                    if (client.name != null) client.id.send(JSON.stringify(all_names))
+                    if (client.name != null && client.id != self) 
+                    client.id.send(JSON.stringify(new_name))
                 })
             }
             else if (object.type == "send_message") {
@@ -89,11 +102,11 @@ webServer.on("connection", (self) => {
                         }))
                     }
                 })
-                self.send(JSON.stringify({
-                    type: "msg",
-                    sender: "you",
-                    msg: object.message
-                }))
+                // self.send(JSON.stringify({
+                //     type: "msg",
+                //     sender: "you",
+                //     msg: object.message
+                // }))
             }
             else if (object.type == "request_video_call") {
                 client2.forEach((client) => {
@@ -149,11 +162,8 @@ webServer.on("connection", (self) => {
                 })
             }
             else if (object.type == 'answer') {
-                // console.log(object.to)
                 client2.forEach((client) => {
-                    // console.log(object.to)
                     if (client.name === object.to) {
-                        console.log('yes')
                         client.id.send(JSON.stringify({
                             type: 'answer',
                             answer: object.answer,
@@ -161,9 +171,6 @@ webServer.on("connection", (self) => {
                         }))
                     }
                 })
-
-                console.log("answer sent from server ")
-
             }
             else if (object.type == 'send_candidate') {
                 client2.forEach((client) => {
@@ -195,13 +202,17 @@ webServer.on("connection", (self) => {
     })
 
     self.on("close", () => {
-        all_names = { names: [] }
+        user_name = { 
+            type: "remove_user"
+        }
         client2.forEach((client) => {
-            if (client.id.readyState === 1)
-                all_names.names.push(client.name)
+            if (client.id == self) {
+                user_name.name = client.name;
+                return;
+            }
         })
         client2.forEach((client) => {
-            if (client.name != null) client.id.send(JSON.stringify(all_names))
+            client.id.send(JSON.stringify(user_name))
         })
         console.log("connection closed")
     })
