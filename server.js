@@ -39,7 +39,7 @@ webServer.on('listening', () => {
     console.log("server started")
 })
 
-const client2 = [];
+var client2 = [];
 
 webServer.on("connection", (self) => {
     console.log("connected")
@@ -51,10 +51,12 @@ webServer.on("connection", (self) => {
             let object = JSON.parse(messag.toString())
 
             console.log(object.type)
-            
+            var sender;
             client2.forEach((client) => {
-                if (client.id == self)
+                if (client.id == self) {
                     sender = client.name
+                }
+                    
             })
 
             if (object.type == 'store_name') {
@@ -203,14 +205,16 @@ webServer.on("connection", (self) => {
 
     self.on("close", () => {
         user_name = { 
-            type: "remove_user"
+            type: "remove_user",
         }
         client2.forEach((client) => {
             if (client.id == self) {
-                user_name.name = client.name;
+                user_name.name = client.name
                 return;
             }
+
         })
+        client2 = client2.filter(curr=> curr.id != self);
         client2.forEach((client) => {
             client.id.send(JSON.stringify(user_name))
         })

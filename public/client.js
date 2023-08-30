@@ -222,7 +222,7 @@ showAlert = (msg) => {
   setTimeout(() => {
     alert_box.classList.replace("opacity-100", "opacity-0");
     alert_box.firstElementChild.nextElementSibling.classList.remove("w-full")
-  }, 2000)
+  }, 4000)
 }
 
 singleUserCheck = () => {
